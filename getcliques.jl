@@ -57,7 +57,7 @@ function writeListEdges(inputstring, outputstring)
 end
 
 
-writeListEdges("graph8c.g6","all_cliques_8.txt")
+writeListEdges("test.g6","test.txt")
 
 
 
