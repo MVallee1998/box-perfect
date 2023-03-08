@@ -2,10 +2,9 @@ import numpy as np
 import json
 import TE
 import tqdm
+import multiprocessing
+import networkx
 degree = 8
-
-
-import networkx as nx
 
 def graph_with_cliques(arrays):
     """
@@ -26,20 +25,21 @@ def graph_with_cliques(arrays):
 
 
 def getPolyhedronFromCliques(cliqueOfg,n):
-	trivialConstraintsGe0 = np.array([np.zeros(n +1) for i in range(0,n)])
+	trivialConstraintsGe0 = np.array([np.zeros(n +1) for i in range(0,n)],dtype=np.float64)
 	c = 1
 	for j in trivialConstraintsGe0:
-		j[c]=1
+		j[c]=1.
 		c = c+1
-	cliqueConstraints = np.zeros((len(cliqueOfg),n+1))
+	cliqueConstraints = np.zeros((len(cliqueOfg),n+1),dtype=np.float64)
 	c=0
 	for K in cliqueOfg:
-		cliqueConstraints[c][0] = 1
-		cliqueConstraints[c][K+1] = -1
+		cliqueConstraints[c][0] = 1.
+		cliqueConstraints[c][K+1] = -1.
 		c=c+1
 	constraintvectors = np.concatenate((trivialConstraintsGe0, cliqueConstraints))
-	return Polyhedron(ieqs = constraintvectors,base_ring=QQ)
-	
+	P = Polyhedron(ieqs = constraintvectors,base_ring=QQ)
+	del constraintvectors,trivialConstraintsGe0,cliqueConstraints
+	return P
 	
 def read_file(filename):
     with open(filename, 'rb') as f:
@@ -55,19 +55,32 @@ g6_path = "data_g6/perfect%d.g6" % degree
 
 g6_data = [g6_byte.decode("utf-8") for g6_byte in read_file(g6_path)]
 cliques_data = [json.loads(clique_bytes) for clique_bytes in read_file(clique_path)]
-result = []
 N = len(cliques_data)
-for k in tqdm.tqdm(range(N)):
-	cliques = [np.array(clique) for clique in cliques_data[k]]
+list_cliques = [[np.array(clique) for clique in cliques_data[k]] for k in range(N)]
+
+def is_bp(cliques):
 	P_g = getPolyhedronFromCliques(cliques,degree)
 	if not P_g.is_compact():
-		continue
+		del P_g
+		return True
 	normal_fan = P_g.normal_fan()
-	for cone in normal_fan:
-		M = np.array(cone.rays())
-		if not TE.is_TE(M):
-			result.append(graph_with_cliques(cliques))
-			break
-print(sage.graphs.graph_list.to_graph6(result))
+	for k in range(2,degree-1):
+		for cone in normal_fan.cones(k):
+			M = np.array(cone.rays(),dtype=np.float64)
+			if not TE.is_equimodular(M):
+				del P_g,normal_fan
+				print('c')
+				return False
+			del M,cone
+	print('c')
+	del P_g,normal_fan
+	return True
+
+if __name__ == '__main__':
+    pool = multiprocessing.Pool()
+    pool = multiprocessing.Pool(processes=10)
+    output = pool.map(is_bp, list_cliques)
+    result = [graph_with_cliques(list_cliques[k]) for k in range(N) if not output[k]]
+    print(sage.graphs.graph_list.to_graph6(result))
 
 

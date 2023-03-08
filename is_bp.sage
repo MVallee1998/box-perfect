@@ -4,8 +4,6 @@ import TE
 import tqdm
 
 
-import networkx as nx
-
 def graph_with_cliques(arrays):
     """
     Creates a graph with cliques corresponding to an input array containing arrays of integers.
@@ -58,14 +56,21 @@ result = []
 N = len(cliques_data)
 for k in tqdm.tqdm(range(N)):
 	cliques = [np.array(clique) for clique in cliques_data[k]]
-	P_g = getPolyhedronFromCliques(cliques,11)
+	degree = max([max(clique) for clique in cliques])+1
+	P_g = getPolyhedronFromCliques(cliques,degree)
 	if not P_g.is_compact():
 		continue
 	normal_fan = P_g.normal_fan()
-	for cone in normal_fan:
-		M = np.array(cone.rays())
-		if not TE.is_TE(M):
-			print("hello")
+	for k in range(1,degree-1):
+		is_equim = True
+		for cone in normal_fan.cones(k):
+			M = np.array(cone.rays())
+			if not TE.is_equimodular(M):
+				result.append(graph_with_cliques(cliques))
+				print("coucou")
+				is_equim = False
+				break
+		if not is_equim:
 			break
 
 
