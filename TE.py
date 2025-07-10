@@ -1,10 +1,11 @@
 import numpy as np
-from numba import jit
+#from numba import jit
 from itertools import combinations
 
 #@jit(cache=True)
-def det(M):
-    M = [row[:] for row in M] # make a copy to keep original M unmodified
+def det(A):
+    M = [row[:] for row in A] # make a copy to keep original M unmodified*
+
     N, sign, prev = len(M), 1., 1.
     for i in range(N-1):
         if M[i][i] == 0: # swap with another row having nonzero i's elem
@@ -14,7 +15,7 @@ def det(M):
             M[i], M[swapto], sign = M[swapto], M[i], -sign
         for j in range(i+1,N):
             for k in range(i+1,N):
-                M[j][k] = ( M[j][k] * M[i][i] - M[j][i] * M[i][k] ) * prev
+                M[j][k] = ( M[j][k] * M[i][i] - M[j][i] * M[i][k] ) / prev
         prev = M[i][i]
     res = sign * M[-1][-1]
     del M,sign,prev,N
@@ -26,11 +27,15 @@ def is_equimodular(M):
 	d=0.
 	for iter_columns in combinations(range(n),k):
 		d = det(M[:,iter_columns])
+		#print(d)
 		if d!=0.:
 			if not first_not_null:
+				memory_index=list(iter_columns)
 				first_not_null = abs(d)
 			if abs(d) != first_not_null:
 				del d
+				print("test")
+				print(M[:,list(iter_columns)],'\n',M[:,memory_index])
 				return False
 	del d
 	return(True)
@@ -40,5 +45,6 @@ def is_TE(M):
 	for i in range(n,0,-1):
 		for iter_rows in combinations(range(k),i):
 			if not is_equimodular(M[iter_rows,:]):
+				print(list(iter_rows))
 				return False
 	return True
